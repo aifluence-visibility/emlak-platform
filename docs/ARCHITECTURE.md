@@ -61,6 +61,21 @@ Bir mülk koleksiyonda yalnızca `citizenship_reviews.status = 'preliminarily_el
 - "Tam uyum" yalnızca belirtilen tüm kriterler birebir uyduğunda verilir.
 - Testler: `tests/matching.test.ts`.
 
+### Veritabanı seviyesinde izolasyon (supabase/migrations)
+
+Müşteri verisinin emlakçılardan ayrılması üç bağımsız katmanla sağlanır. Herhangi biri hatalı olsa bile diğerleri veriyi korur:
+
+1. **Şema yetkisi:** Alıcı kişisel verileri, talepler, eşleşmeler, randevular, ham ilgi olayları, sözleşmeler ve denetim kayıtları `private` şemasındadır. `anon` ve `authenticated` rollerinin bu şemada `USAGE` yetkisi bile yoktur. Tablo adı bilinse de sorgu "permission denied for schema private" ile reddedilir. Bu şema Supabase Data API'de açılmaz.
+2. **RLS (varsayılan reddet):** `public` şemadaki her tabloda RLS açıktır. İstemci yetkileri önce tamamen kaldırılır, sonra tablo ve sütun bazında yalnızca gerekenler verilir. Partner koşulları her zaman `my_partner_ids()` ile sunucuda hesaplanır; kullanıcının değiştirebileceği metadata kullanılmaz.
+3. **Fonksiyon sınırı:** Yönetici alıcı verisine yalnızca `admin_*` RPC'leriyle ulaşır. Bu fonksiyonlar yöneticiliği doğrular; kişisel veri için ayrıca `can_view_pii` yetkisi arar ve her okumayı `private.audit_events` tablosuna yazar. Partner RPC'leri (`partner_*`) alıcı tablolarını hiç okumaz. İstatistik fonksiyonu yalnızca kova uygulanmış sayı döndürür.
+
+Ek kurallar (tetikleyicilerle):
+- Partner ilanını kendisi yayınlayamaz, "doğrulandı" işaretini koyamaz, yetki veya EİDS durumunu değiştiremez.
+- Çoklu partnerli ilanın kanonik kaydını tek bir partner değiştiremez.
+- Yayın için aktif yetki, doğrulanmış EİDS ve doğrulanmış yetki belgesi zorunludur.
+
+**Testler:** `supabase/tests/rls_isolation.test.sql` 111 kontrol içerir. Yerelde `npm run db:test` ile çalışır. Kasıtlı açık eklenerek denendi: herkese açık partner bağlantısı, `private` şemanın açılması, taslakların ziyaretçiye açılması, ofis listesinin açılması ve kovanın kaldırılması. Beşi de yakalandı.
+
 ## 4. Alan modeli (önerilen şema)
 
 Ayrıntılı tipler: `src/lib/types.ts`. Tablo adları brief §10 ile birebir aynı.
