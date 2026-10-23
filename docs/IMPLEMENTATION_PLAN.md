@@ -9,7 +9,7 @@ Sahip talimatı: önce web sitesi ve paneller **örnek verilerle** hazırlanır,
 | 2 | Örnek veri katmanı | ✅ Yapıldı | Kurgusal 26 mülk (4'ü yayında değil), 3 proje, 4 partner, vatandaşlık incelemeleri |
 | 3 | Herkese açık site | ✅ Yapıldı | Ana sayfa, Satılık Evler, ilan detayı, Yeni Projeler, Vatandaşlık (TR/EN/RU) |
 | 4 | Filtre, favori, karşılaştırma, eşleştirme | ✅ Yapıldı | URL filtreleri; favoriler; 4 ilana kadar karşılaştırma; Bana Uygun Evi Bul; vatandaşlık için ayrı bulucu; çoklu randevu talebi |
-| 5 | Partner (emlakçı) paneli | ⏳ Sıradaki | Kendi portföyü, ilan formu (taslak → yayın akışı), belge yükleme alanı, ilan başına **uygun talep sayısı**, anonim randevu takvimi. Alıcı ve diğer partner verisi sunucudan **hiç** dönmez |
+| 5 | Partner (emlakçı) paneli | ✅ Bu PR | Kendi portföyü, ilan formu (taslak → yayın akışı), belge alanları, ilan başına görüntülenme / favori / ilgilenen alıcı (1–2 kovası, gecikmeli, tekil), gösterim müsaitliği. Alıcı, randevu ve diğer partner verisi partner katmanından **hiç** dönmez |
 | 6 | Yönetici paneli | ⏳ | Partnerler, yayın onayları, EİDS ve belge kontrolü (simüle olduğu açıkça yazılı), alıcı havuzu, eşleştirme ekranı, randevular (çoklu ilan), vatandaşlık inceleme kontrol listesi ve onay, eşleştirme ağırlık ayarları, mükerrer kayıt kuyruğu |
 | 7 | Vercel önizleme | ⏳ | Yeni repoya bağlı ayrı Vercel projesi, Preview dağıtımı, `noindex` |
 | 8 | Supabase migration hazırlığı | ⏳ | `supabase/migrations/*.sql`: şema, private şema, RLS, RPC'ler, sentetik seed, `supabase/tests` RLS testleri. **Hiçbiri çalıştırılmaz** |

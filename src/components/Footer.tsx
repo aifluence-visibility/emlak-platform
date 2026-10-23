@@ -29,6 +29,7 @@ export default function Footer() {
           <strong>Kurumsal</strong>
           <Link href="/gizlilik">Gizlilik ve KVKK</Link>
           <Link href="/onizleme">Önizleme hakkında</Link>
+          <Link href="/partner">İş ortağı paneli (önizleme)</Link>
         </div>
       </div>
       <div className="container ftr-bottom small muted">
