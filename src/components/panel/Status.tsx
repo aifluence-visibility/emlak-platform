@@ -7,3 +7,7 @@ export function StatusBadge({ status }: { status: string }) {
 export function AuthBadge({ status }: { status: string }) {
   return <span className={`st st-${status}`}>{AUTH_STATUS[status] ?? status}</span>;
 }
+
+export function Badge({ status, labels }: { status: string; labels: Record<string, string> }) {
+  return <span className={`st st-${status}`}>{labels[status] ?? status}</span>;
+}

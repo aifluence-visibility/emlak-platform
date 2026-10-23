@@ -314,7 +314,7 @@
 /* Yaşam döngüsü adımları */
 .steps-line {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(var(--steps, 5), 1fr);
   gap: 6px;
   counter-reset: st;
 }
@@ -408,4 +408,129 @@ input[type="file"] {
 .ptable .nowrap,
 .ptable .nowrap .small {
   white-space: nowrap;
+}
+
+/* Yönetici: talep ve randevu durumları */
+.st-new,
+.st-requested {
+  background: var(--sea-soft);
+  color: var(--sea);
+}
+.st-contacted,
+.st-matching,
+.st-contacting,
+.st-awaiting_partner_confirmation,
+.st-proposed,
+.st-under_review,
+.st-needs_documents {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.st-viewing,
+.st-negotiation,
+.st-confirmed,
+.st-completed,
+.st-closed_won,
+.st-preliminarily_eligible {
+  background: var(--ok-soft);
+  color: var(--ok);
+}
+.st-closed_lost,
+.st-cancelled,
+.st-no_show,
+.st-not_eligible,
+.st-expired_review {
+  background: #f3e6e4;
+  color: var(--danger);
+}
+.pii {
+  background: #fff8ec;
+  border: 1px solid #f0dcb4;
+  border-radius: var(--radius);
+  padding: 14px 16px;
+}
+.pii-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a6420;
+  font-weight: 700;
+}
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0;
+}
+.timeline li {
+  position: relative;
+  padding: 0 0 16px 22px;
+  border-left: 2px solid var(--line);
+  margin-left: 6px;
+  font-size: 0.88rem;
+}
+.timeline li::before {
+  content: "";
+  position: absolute;
+  left: -7px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--sea);
+  border: 2px solid #fff;
+}
+.timeline li:last-child {
+  border-left-color: transparent;
+}
+.btn-ok {
+  background: var(--ok);
+  color: #fff;
+}
+.btn-danger {
+  background: #fff;
+  color: var(--danger);
+  border-color: #e7c7c2;
+}
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.checklist li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.88rem;
+}
+.checklist li::before {
+  content: "○";
+  color: var(--muted);
+  font-weight: 700;
+}
+.checklist li[data-ok="true"]::before {
+  content: "✓";
+  color: var(--ok);
+}
+.weight-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 60px;
+  gap: 12px;
+  align-items: center;
+}
+.weight-row input[type="range"] {
+  width: 100%;
+  accent-color: var(--ink);
+}
+@media (max-width: 600px) {
+  .weight-row {
+    grid-template-columns: 1fr 60px;
+  }
+  .weight-row input[type="range"] {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
 }

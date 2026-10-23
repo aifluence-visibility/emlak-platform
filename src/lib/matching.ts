@@ -40,6 +40,7 @@ export const DEFAULT_WEIGHTS = {
   features: 10,
   recency: 5,
   budgetTolerance: 0.1, // bütçenin %10 üstüne kadar kısmi puan
+  budgetHardLimit: 0.25, // bütçeyi %25'ten fazla aşan ilan hiç önerilmez (kesin işaretlenmese bile)
   minScore: 60, // bunun altı gösterilmez (galeri projesindeki min_score ile aynı)
 };
 export type Weights = typeof DEFAULT_WEIGHTS;
@@ -99,6 +100,7 @@ export function scoreProperty(
   } else {
     exact = false;
     if (strict.has("butce")) return null;
+    if (p.price > c.budgetMax * (1 + w.budgetHardLimit)) return null;
     const over = p.price - c.budgetMax;
     if (p.price <= c.budgetMax * (1 + w.budgetTolerance)) s += w.budget * 0.5;
     rs.push({ t: "warn", m: R.budget_warn({ over: money(lang, over) }) });
