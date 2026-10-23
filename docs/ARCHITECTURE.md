@@ -46,7 +46,7 @@ Partner, **yalnızca kendi portföyündeki** her ilan için şu üç sayıyı g�
 - **Anonim ve toplulaştırılmış:** partner ham olayları, alıcı adını, telefonunu, e-postasını, arama kriterlerini, taleplerini, eşleşme ayrıntılarını ve randevu bilgilerini **görmez**.
 - **İzolasyon:** başka partnerin ilanı veya istatistiği hiçbir yanıtta yer almaz. Partnerin bağlantısı olmayan bir mülk "bulunamadı" (404) döner; varlığı bile sızmaz.
 - **Uygulama (önizleme):** `src/lib/stats.ts` (`aggregate`, `bucketInterested`) ve `src/lib/data/partner.ts`. Ham ilgilenen sayısı partner katmanına hiç çıkmaz; yalnızca kova değeri çıkar.
-- **Uygulama (canlı):** ham olaylar `private.interest_events` tablosunda (saklama süreli; anonim ziyaretçi anahtarı dönen ve tuzlu hash). Gece çalışan bir iş `listing_interest_daily` tablosunu doldurur. Partner yalnızca `partner_listing_stats()` RPC'sini çağırabilir (security definer, `auth.uid()` → partner üyeliği → yalnızca aktif bağlantılı mülkler; kova uygulanmış değer).
+- **Uygulama (canlı):** ham olaylar `private.interest_events` tablosunda (saklama süreli; anonim ziyaretçi anahtarı dönen ve tuzlu hash). Gece çalışan bir iş `listing_interest_daily` tablosunu doldurur. Partner yalnızca `public.partner_listing_stats()` RPC'sini çağırabilir (security definer, `auth.uid()` → partner üyeliği → yalnızca aktif bağlantılı mülkler; kova uygulanmış değer).
 - **Randevular:** sahip kararıyla partner panelinde randevu bilgisi **gösterilmez**. Partner yalnızca genel **gösterim müsaitliğini** bildirir; görüntüleme gerektiğinde platform ekibi partnerle doğrudan iletişime geçer.
 
 ### Sahip kararı: vatandaşlık koleksiyonu
@@ -60,6 +60,23 @@ Bir mülk koleksiyonda yalnızca `citizenship_reviews.status = 'preliminarily_el
 - "Kesin" işaretli kriter: 1 birim uymayan bile elenir.
 - "Tam uyum" yalnızca belirtilen tüm kriterler birebir uyduğunda verilir.
 - Testler: `tests/matching.test.ts`.
+
+### Veritabanı seviyesinde izolasyon (supabase/migrations)
+
+Müşteri verisinin emlakçılardan ayrılması üç bağımsız katmanla sağlanır. Herhangi biri hatalı olsa bile diğerleri veriyi korur:
+
+1. **Şema yetkisi:** Alıcı kişisel verileri, talepler, eşleşmeler, randevular, ham ilgi olayları, sözleşmeler ve denetim kayıtları `private` şemasındadır. `anon` ve `authenticated` rollerinin bu şemada `USAGE` yetkisi bile yoktur. Tablo adı bilinse de sorgu "permission denied for schema private" ile reddedilir. Bu şema Supabase Data API'de açılmaz.
+2. **RLS (varsayılan reddet):** `public` şemadaki her tabloda RLS açıktır. İstemci yetkileri önce tamamen kaldırılır, sonra tablo ve sütun bazında yalnızca gerekenler verilir. Partner koşulları her zaman `app.my_partner_ids()` ile sunucuda hesaplanır; kullanıcının değiştirebileceği metadata kullanılmaz. RLS yardımcıları Data API'de açık olmayan `app` şemasındadır.
+3. **Fonksiyon sınırı:** Yönetici alıcı verisine yalnızca `admin_*` RPC'leriyle ulaşır. Bu fonksiyonlar yöneticiliği doğrular; kişisel veri için ayrıca `can_view_pii` yetkisi arar ve her okumayı `private.audit_events` tablosuna yazar. Partner RPC'leri (`partner_*`) alıcı tablolarını hiç okumaz. İstatistik fonksiyonu yalnızca kova uygulanmış sayı döndürür.
+
+Ek kurallar (tetikleyicilerle):
+- Partner ilanını kendisi yayınlayamaz, "doğrulandı" işaretini koyamaz, yetki veya EİDS durumunu değiştiremez.
+- Çoklu partnerli ilanın kanonik kaydını tek bir partner değiştiremez.
+- Yayın için aktif yetki, doğrulanmış EİDS ve doğrulanmış yetki belgesi zorunludur.
+
+**Security definer:** Yalnızca gerektiği yerde kullanılır; her fonksiyonun gerekçesi `docs/SECURITY_DEFINER.md` içindedir.
+
+**Testler:** `supabase/tests/rls_isolation.test.sql` 123 kontrol içerir; bunların bir kısmı definer listesinin ve yetkilerinin değişmediğini denetler. Yerelde `npm run db:test` ile çalışır. Kasıtlı açık eklenerek denendi: herkese açık partner bağlantısı, `private` şemanın açılması, taslakların ziyaretçiye açılması, ofis listesinin açılması ve kovanın kaldırılması. Beşi de yakalandı. Definer denetimi için ayrıca 3 kasıtlı ihlal denendi: ziyaretçiye yönetici fonksiyonu açma, `search_path`'siz yeni fonksiyon ve yardımcıyı ziyaretçiye açma. Üçü de yakalandı.
 
 ## 4. Alan modeli (önerilen şema)
 
