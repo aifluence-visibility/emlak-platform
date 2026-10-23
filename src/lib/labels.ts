@@ -77,3 +77,51 @@ export const NEIGHBORHOODS: Record<"bodrum" | "milas", string[]> = {
   bodrum: ["Akyarlar", "Bitez", "Göltürkbükü", "Gümüşlük", "Gündoğan", "Gürece", "Konacık", "Kumbahçe", "Mumcular", "Ortakent", "Torba", "Turgutreis", "Yalıkavak"],
   milas: ["Boğaziçi", "Güllük", "Kıyıkışlacık", "Milas Merkez", "Ören"],
 };
+
+export const REQUEST_STATUS: Record<string, string> = {
+  new: "Yeni",
+  contacted: "İletişime geçildi",
+  matching: "Eşleştirme",
+  viewing: "Görüntüleme",
+  negotiation: "Pazarlık",
+  closed_won: "Satışla kapandı",
+  closed_lost: "Kapandı",
+};
+
+export const REQUEST_SOURCE: Record<string, string> = {
+  site_form: "Site formu",
+  match_wizard: "Bana Uygun Evi Bul",
+  citizenship_wizard: "Vatandaşlık bulucu",
+  listing_inquiry: "İlan talebi",
+  phone: "Telefon",
+};
+
+export const VIEWING_STATUS: Record<string, string> = {
+  requested: "Talep alındı",
+  contacting: "Alıcıyla görüşülüyor",
+  awaiting_partner_confirmation: "Ofis teyidi bekleniyor",
+  proposed: "Program önerildi",
+  confirmed: "Onaylandı",
+  completed: "Tamamlandı",
+  cancelled: "İptal",
+  no_show: "Gelmedi",
+};
+
+export const CIT_STATUS: Record<string, string> = {
+  not_reviewed: "İncelenmedi",
+  under_review: "İncelemede",
+  preliminarily_eligible: "Ön uygun",
+  needs_documents: "Belge eksik",
+  not_eligible: "Uygun değil",
+  expired_review: "İnceleme süresi doldu",
+};
+
+export const CIT_CHECK: Record<string, string> = {
+  threshold_current_law: "Güncel mevzuattaki asgari yatırım tutarı",
+  official_valuation: "Resmî değerleme / değer tespiti",
+  title_eligible: "Tapu türü ve uygunluğu",
+  ownership_history: "Önceki mülkiyet ve devir geçmişi",
+  foreign_ownership_restrictions: "Konum ve uyruğa göre yabancı edinim kısıtları",
+  sale_restriction_annotation: "Satış kısıtı / şerh gereklilikleri",
+  agency_rules: "Güncel aracılık kuralları",
+};

@@ -53,6 +53,14 @@ Partner, **yalnızca kendi portföyündeki** her ilan için şu üç sayıyı g�
 
 Bir mülk koleksiyonda yalnızca `citizenship_reviews.status = 'preliminarily_eligible'` **ve** `admin_approved = true` olduğunda görünür. Fiyat tek başına hiçbir zaman yeterli değildir. Sabit bir TL/USD eşiği kodlanmaz; kontrol listesi kalemlerinden biri "güncel mevzuattaki asgari yatırım tutarı"dır.
 
+### Eşleştirme kuralları (galeri `score_pair` uyarlaması)
+
+- Ağırlıklar (toplam 100): bölge 25, bütçe 25, tür 15, oda 12, alan 8, özellikler 10, güncellik 5. Alt sınır %60.
+- **Öneri dışı (kesin işaretlenmese bile):** ilgisiz tür (ör. villa arayana daire; benzer tür villa↔müstakil, daire↔rezidans yarım puan alır) ve bütçeyi **%25'ten fazla** aşan ilan.
+- "Kesin" işaretli kriter: 1 birim uymayan bile elenir.
+- "Tam uyum" yalnızca belirtilen tüm kriterler birebir uyduğunda verilir.
+- Testler: `tests/matching.test.ts`.
+
 ## 4. Alan modeli (önerilen şema)
 
 Ayrıntılı tipler: `src/lib/types.ts`. Tablo adları brief §10 ile birebir aynı.
@@ -114,6 +122,8 @@ supabase/migrations/    (Supabase aşamasında eklenecek)
 ## 7. RLS test matrisi (Supabase aşamasında otomatik test olacak)
 
 Kimlikler: `admin`, `partner_a`, `partner_b`, `buyer_a`, `buyer_b`, `anon`.
+
+Önizlemede kod katmanı sınırı `tests/isolation.test.ts` ile korunur: `src/app/(site)`, `src/app/partner` ve `src/app/api` altındaki hiçbir dosya, dolaylı import zinciriyle bile `src/lib/mock/buyers.ts` veya `src/lib/data/admin.ts` dosyasına ulaşamaz.
 
 | # | İşlem | admin | partner_a | partner_b | buyer_a | anon |
 |---|---|---|---|---|---|---|

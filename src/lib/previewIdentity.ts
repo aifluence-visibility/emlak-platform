@@ -21,3 +21,14 @@ export async function requirePreviewPartner(): Promise<string> {
   if (!id) redirect("/partner/onizleme-kimligi");
   return id;
 }
+
+/** ÖNİZLEME: yönetici görünümü. Partner çerezi yönetici erişimi VERMEZ; ayrı çerez. */
+export const PREVIEW_ADMIN_COOKIE = "ep_preview_admin";
+
+export async function isPreviewAdmin(): Promise<boolean> {
+  return (await cookies()).get(PREVIEW_ADMIN_COOKIE)?.value === "1";
+}
+
+export async function requirePreviewAdmin(): Promise<void> {
+  if (!(await isPreviewAdmin())) redirect("/admin/onizleme");
+}
