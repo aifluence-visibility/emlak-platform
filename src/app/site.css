@@ -954,3 +954,10 @@
     min-height: 220px;
   }
 }
+
+/* Küçük ekranda hero metni görselin üstünde okunur kalsın */
+@media (max-width: 640px) {
+  .hero::after {
+    background: linear-gradient(180deg, rgba(10, 18, 26, 0.35) 0%, rgba(10, 18, 26, 0.72) 45%, rgba(10, 18, 26, 0.82) 100%);
+  }
+}
