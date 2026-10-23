@@ -52,7 +52,7 @@ create table private.buyer_requests (
 );
 create index buyer_requests_buyer_idx on private.buyer_requests (buyer_id);
 create index buyer_requests_status_idx on private.buyer_requests (status);
-create trigger buyer_requests_touch before update on private.buyer_requests for each row execute function public.touch_updated_at();
+create trigger buyer_requests_touch before update on private.buyer_requests for each row execute function app.touch_updated_at();
 
 -- Eşleşmeler: yalnızca motor (005) yazar, yalnızca yönetici okur
 create table private.property_matches (
@@ -79,7 +79,7 @@ create table private.viewing_requests (
   created_at   timestamptz not null default now(),
   updated_at   timestamptz not null default now()
 );
-create trigger viewing_requests_touch before update on private.viewing_requests for each row execute function public.touch_updated_at();
+create trigger viewing_requests_touch before update on private.viewing_requests for each row execute function app.touch_updated_at();
 
 create table private.viewing_request_items (
   viewing_request_id uuid not null references private.viewing_requests(id) on delete cascade,
@@ -189,7 +189,7 @@ create table private.audit_events (
 create index audit_events_at_idx on private.audit_events (at desc);
 
 create or replace function private.audit(p_action text, p_target_type text, p_target_id text, p_detail jsonb default null) returns void
-language sql security definer set search_path = '' as $$
+language sql set search_path = '' as $$
   insert into private.audit_events (actor, action, target_type, target_id, detail)
   values ((select auth.uid()), p_action, p_target_type, p_target_id, p_detail)
 $$;

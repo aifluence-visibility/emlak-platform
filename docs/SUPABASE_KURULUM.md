@@ -3,16 +3,17 @@
 > Bu belge **taslaktır**. Kurulumu birlikte, ekran ekran yapacağız; her adımdan sonra onayınızı bekleyeceğim.
 > Supabase arayüzündeki menü adları zamanla değişebilir; o gün ekranda gördüklerinizi birlikte doğrulayacağız.
 > **Galeri projesinin (otogaleri-havuz) Supabase'ine kesinlikle dokunulmaz.** Bu kurulum yeni hesap/yeni projede yapılır.
+> Kurulum, Vercel önizlemesi çalışıp site birlikte gözden geçirildikten **sonra** yapılacak.
 
 ## Adım 0 — Hazırlık (sizde)
 - Yeni Supabase hesabıyla giriş yapın.
 - Veritabanı şifresini bir şifre yöneticisinde saklayın. Şifreyi **asla** sohbete, GitHub'a veya e-postaya yazmayın.
 
-## Adım 1 — Yeni proje
-- **Menü:** Dashboard → **New project**
-- **Ad:** `emlak-platform`
-- **Bölge:** Türkiye'ye en yakın AB bölgesi (Frankfurt, `eu-central-1`). KVKK açısından veri konumu not edilmeli.
-- **Onay noktası ✋**
+## Adım 1 — Proje (oluşturuldu)
+- Yeni hesapta proje **oluşturulmuş durumda**. Bölge: **West EU (Ireland), `eu-west-1`**.
+- Proje kimliği ve adresi bu repoya **yazılmaz**; yalnızca Vercel ortam değişkenlerinde tutulur.
+- **KVKK kapısı:** Gerçek müşteri verisi girilmeden önce, verinin AB'de (İrlanda) işlenmesi için KVKK'daki yurt dışına aktarım şartları ayrıca kontrol edilecek. Bu kontrol tamamlanana kadar sistemde yalnızca sentetik veri kullanılır.
+- Ücretsiz planda proje bir süre kullanılmazsa duraklatılabilir; canlıya geçmeden önce plan ayrıca değerlendirilecek.
 
 ## Adım 2 — Eklenti
 - **Menü:** Database → **Extensions** → `pg_cron` → Enable
@@ -34,7 +35,7 @@
 
 ## Adım 4 — Güvenlik testleri (gerçek veri girilmeden önce)
 - **Menü:** SQL Editor → `supabase/tests/rls_isolation.test.sql` içeriği → Run
-- Beklenen sonuç: `TÜM TESTLER GEÇTİ: 111 kontrol`
+- Beklenen sonuç: `TÜM TESTLER GEÇTİ: 123 kontrol`
 - Test kendi sentetik kayıtlarını oluşturur ve sonunda **ROLLBACK** eder; veritabanında iz bırakmaz.
 - **Onay noktası ✋**
 
@@ -42,7 +43,8 @@
 - **Data API'de açık şemalar:** Project Settings → **Data API**. Yalnızca `public` (ve `graphql_public`) açık olmalı. `private` **eklenmemeli**.
 - **Kimlik doğrulama:** Authentication → Sign In / Providers. E-posta açık, "Confirm email" açık. İş ortakları yalnızca davetle eklenir; kayıt olmak kimseye iş ortağı veya yönetici yetkisi vermez (yetkiler veritabanı tablolarından gelir).
 - **URL ayarları:** Authentication → **URL Configuration**. Site URL ve yönlendirme adresleri olarak Vercel adresleri girilir.
-- **Security Advisor:** Advisors → Security Advisor. Çıkan uyarıları birlikte değerlendireceğiz. `public` şemadaki bazı `security definer` fonksiyonlar bilinçli olarak böyle; her birinin gerekçesi `docs/ARCHITECTURE.md` içinde.
+- **Data API'de açık şemalar:** `app` ve `private` şemaları **eklenmemeli**. RLS yardımcıları ve iç fonksiyonlar bilinçli olarak bu şemalarda duruyor.
+- **Security Advisor:** Advisors → Security Advisor. **Her uyarı tek tek** `docs/SECURITY_DEFINER.md` §6 tablosuyla karşılaştırılacak ve sonucu yazılacak. Hiçbir uyarı görmezden gelinmez veya otomatik olarak güvenli kabul edilmez. Listede olmayan bir uyarı çıkarsa durulur.
 - **Storage:** `property-media` ve `partner-documents` bucket'larının **Public: kapalı** olduğu kontrol edilir.
 - **Onay noktası ✋**
 

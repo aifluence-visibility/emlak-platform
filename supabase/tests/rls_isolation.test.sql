@@ -333,7 +333,7 @@ select tests.throws($$select public.admin_set_property_status('bbbbbbbb-0000-000
 select public.admin_verify_check('dddddddd-0000-0000-0000-0000000000b5', 'verified');
 update public.partner_property_links set eids_status = 'verified' where id = 'cccccccc-0000-0000-0000-0000000000b5';
 select public.admin_set_property_status('bbbbbbbb-0000-0000-0000-000000000005', 'published');
-select tests.ok(public.property_is_live('bbbbbbbb-0000-0000-0000-000000000005'), 'yönetici: doğrulamalar tamamlanınca yayınlar');
+select tests.ok(app.property_is_live('bbbbbbbb-0000-0000-0000-000000000005'), 'yönetici: doğrulamalar tamamlanınca yayınlar');
 select tests.throws($$update public.citizenship_reviews set admin_approved = true, expires_at = now() + interval '90 days', checklist = checklist || '{"agency_rules": false}' where property_id = 'bbbbbbbb-0000-0000-0000-000000000003'$$, 'vatandaşlık: kontrol listesi eksikken onaylanamaz');
 select tests.throws($$update public.citizenship_reviews set status = 'under_review', admin_approved = true where property_id = 'bbbbbbbb-0000-0000-0000-000000000003'$$, 'vatandaşlık: "ön uygun" olmadan onaylanamaz');
 select tests.ok((select count(*) from jsonb_array_elements(public.admin_audit_log(100)) a where a->>'action' = 'buyer.view') >= 1, 'denetim: alıcı detayı görüntülemesi kaydedildi');
@@ -362,6 +362,73 @@ select tests.ok(not exists (
   select 1 from pg_class c join pg_namespace n on n.oid = c.relnamespace
   where n.nspname in ('public', 'private') and c.relkind = 'r' and not c.relrowsecurity
 ), 'public ve private şemalardaki tüm tablolarda RLS açık');
+
+-- =================================================================
+-- 9) SECURITY DEFINER denetimi (docs/SECURITY_DEFINER.md ile birebir)
+--    Yeni bir definer fonksiyon eklenir/çıkarılır ya da yetkisi genişlerse bu bölüm başarısız olur.
+-- =================================================================
+create temp table _fn as
+select p.oid, n.nspname as schema, p.proname as name, p.prosecdef as definer, p.proconfig as config, p.prosrc as src,
+       pg_get_function_identity_arguments(p.oid) as args
+from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+where n.nspname in ('public', 'app', 'private')
+  and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e');
+
+select tests.ok(not exists (
+  select 1 from _fn where definer and not ('search_path=""' = any(coalesce(config, '{}')))
+), 'definer: tüm security definer fonksiyonlarda search_path boş dizgeye sabit');
+
+select tests.ok((select array_agg(name order by name) from _fn where schema = 'public') = array[
+  'admin_audit_log', 'admin_erase_buyer', 'admin_get_buyer_request', 'admin_list_buyer_requests', 'admin_list_viewings',
+  'admin_match_overview', 'admin_refresh_interest_snapshot', 'admin_set_match_setting', 'admin_set_property_status',
+  'admin_set_request_status', 'admin_set_viewing_status', 'admin_verify_check', 'citizenship_collection', 'match_weights',
+  'my_requests', 'partner_create_property', 'partner_get_private_details', 'partner_listing_stats', 'partner_submit_property',
+  'record_listing_view', 'request_viewing', 'submit_buyer_request'
+]::name[], 'definer: public şemada (Data API) yalnızca onaylı 22 RPC var; yardımcı fonksiyonlar app şemasında');
+
+select tests.ok((select array_agg(name order by name) from _fn where schema = 'private' and definer) = array[
+  'expire_authorizations', 'log_favorite_event', 'log_price_change', 'on_link_change', 'on_property_change',
+  'on_request_change', 'refresh_interest_snapshot'
+]::name[], 'definer: private şemada yalnızca 7 giriş noktası definer (tetikleyiciler ve gece işleri); iç fonksiyonlar invoker');
+
+select tests.ok((select array_agg(name order by name) from _fn where schema = 'app' and definer) = array[
+  'is_partner_member', 'is_platform_admin', 'is_superadmin', 'my_partner_ids', 'partner_can_edit_property',
+  'partner_links_development', 'partner_links_property', 'partner_role', 'property_is_live'
+]::name[], 'definer: app şemasında yalnızca 9 RLS yardımcısı definer');
+
+select tests.ok(not exists (select 1 from _fn where schema = 'public' and not definer),
+  'definer: public şemadaki her RPC belgelenmiş definer fonksiyon (gizli yardımcı yok)');
+
+select tests.ok((
+  select array_agg(name order by name) from _fn where schema = 'public' and has_function_privilege('anon', oid, 'execute')
+) = array['citizenship_collection', 'match_weights', 'request_viewing', 'submit_buyer_request']::name[],
+  'definer: ziyaretçinin çağırabildiği RPC''ler yalnızca 4 onaylı fonksiyon');
+
+select tests.ok(not exists (
+  select 1 from _fn where schema = 'private' and (has_function_privilege('anon', oid, 'execute') or has_function_privilege('authenticated', oid, 'execute'))
+), 'definer: private fonksiyonları istemci rolleriyle çalıştırılamaz');
+
+select tests.ok((
+  select array_agg(name order by name) from _fn where schema = 'app' and has_function_privilege('anon', oid, 'execute')
+) = array['property_is_live', 'slugify', 'try_uuid']::name[], 'definer: app şemasında ziyaretçiye açık yalnızca 3 yardımcı');
+
+select tests.ok(not exists (
+  select 1 from _fn where schema = 'public' and name like 'admin\_%' and src not like '%private.require_admin(%'
+), 'definer: her admin_* fonksiyonu yönetici kontrolüyle başlar');
+
+select tests.ok(not exists (
+  select 1 from _fn where schema = 'public' and name like 'partner\_%'
+    and src !~ 'app\.(partner_role|is_partner_member|partner_can_edit_property|partner_links_property)\('
+), 'definer: her partner_* fonksiyonu üyelik/bağlantı kontrolü yapar');
+
+select tests.ok(not exists (
+  select 1 from _fn where schema = 'public' and name like 'partner\_%'
+    and src ~ 'private\.(buyers|buyer_requests|property_matches|viewing_requests|viewing_request_items|appointments|interest_events|audit_events)'
+), 'definer: hiçbir partner_* fonksiyonu alıcı/talep/eşleşme/randevu tablolarını okumaz');
+
+select tests.ok(not exists (
+  select 1 from pg_views where schemaname in ('public', 'app')
+), 'definer: public/app şemasında view yok (security definer view riski yok)');
 
 select format('TÜM TESTLER GEÇTİ: %s kontrol', current_setting('tests.passed')) as sonuc;
 

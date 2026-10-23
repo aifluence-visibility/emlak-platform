@@ -12,7 +12,7 @@
 -- Ortak: alıcı talebi oluşturma (iç fonksiyon)
 -- ---------------------------------------------------------------
 create or replace function private.create_buyer_request(p jsonb, p_source text) returns private.buyer_requests
-language plpgsql security definer set search_path = '' as $$
+language plpgsql set search_path = '' as $$
 declare
   v_name    text := nullif(trim(p->>'full_name'), '');
   v_phone   text := nullif(regexp_replace(coalesce(p->>'phone', ''), '[^0-9+]', '', 'g'), '');
@@ -46,7 +46,7 @@ begin
   -- Yalnızca canlı ilanlar kabul edilir (yayında olmayan ilan kimliği sızdırılamaz/denenemez)
   select coalesce(array_agg(x), '{}') into v_props
   from (select distinct (jsonb_array_elements_text(coalesce(p->'property_ids', '[]'::jsonb)))::uuid as x) t
-  where public.property_is_live(t.x);
+  where app.property_is_live(t.x);
 
   -- Aynı kişinin kayıtları birleştirilmez (doğrulanmamış iletişim bilgisiyle başkasının kaydına bağlanmayı önler)
   insert into private.buyers (user_id, full_name, phone, email, contact_hash, nationality, language, consent_at, consent_version, marketing_opt_in)
@@ -116,7 +116,7 @@ create or replace function public.record_listing_view(p_property_id uuid, p_acto
 language plpgsql security definer set search_path = '' as $$
 begin
   if p_actor_key !~ '^[0-9a-f]{64}$' then raise exception 'Geçersiz anahtar' using errcode = '22023'; end if;
-  if public.property_is_live(p_property_id) then
+  if app.property_is_live(p_property_id) then
     insert into private.interest_events (property_id, actor_key, type) values (p_property_id, p_actor_key, 'view');
   end if;
 end $$;
@@ -169,7 +169,7 @@ begin
   return n;
 end $$;
 
-create or replace function public.bucket_interested(n int) returns text
+create or replace function app.bucket_interested(n int) returns text
 language sql immutable set search_path = '' as $$
   select case when n is null or n = 0 then '0' when n <= 2 then '1–2' else n::text end
 $$;
@@ -181,7 +181,7 @@ create or replace function public.partner_create_property(p_partner_id uuid, p j
 language plpgsql security definer set search_path = '' as $$
 declare v_id uuid; v_code text; v_district text := p->>'district';
 begin
-  if public.partner_role(p_partner_id) is null then
+  if app.partner_role(p_partner_id) is null then
     raise exception 'Bu iş ortağı adına işlem yetkiniz yok' using errcode = '42501';
   end if;
   v_code := case v_district when 'milas' then 'ML-' else 'BD-' end || nextval('public.property_code_seq')::text;
@@ -189,7 +189,7 @@ begin
   insert into public.properties (code, slug, title, summary, description, district, neighborhood, type, status, price,
     rooms, gross_sqm, net_sqm, land_sqm, building_age, floor, bathrooms, has_pool, has_garden, has_sea_view, has_parking,
     is_furnished, in_site, credit_eligible, title_deed, sea_distance_m, created_by)
-  values (v_code, public.slugify(p->>'title') || '-' || lower(v_code), p->>'title', p->>'summary', p->>'description',
+  values (v_code, app.slugify(p->>'title') || '-' || lower(v_code), p->>'title', p->>'summary', p->>'description',
     v_district, p->>'neighborhood', p->>'type', 'draft', (p->>'price')::bigint,
     nullif(p->>'rooms', ''), nullif(p->>'gross_sqm', '')::int, nullif(p->>'net_sqm', '')::int, nullif(p->>'land_sqm', '')::int,
     nullif(p->>'building_age', '')::int, nullif(p->>'floor', ''), nullif(p->>'bathrooms', '')::int,
@@ -214,14 +214,14 @@ create or replace function public.partner_submit_property(p_property_id uuid) re
 language plpgsql security definer set search_path = '' as $$
 declare v_status text; v_next text;
 begin
-  if not public.partner_can_edit_property(p_property_id) then
+  if not app.partner_can_edit_property(p_property_id) then
     raise exception 'Bu ilan gönderilemez' using errcode = '42501';
   end if;
   select status into v_status from public.properties where id = p_property_id;
   v_next := case when exists (
       select 1 from public.property_authorization_checks c
       join public.partner_property_links l on l.id = c.link_id
-      where l.property_id = p_property_id and l.partner_id in (select public.my_partner_ids())
+      where l.property_id = p_property_id and l.partner_id in (select app.my_partner_ids())
         and c.kind = 'authorization_document' and c.status <> 'rejected')
     then 'pending_eids_verification' else 'pending_partner_documents' end;
   update public.properties set status = v_next where id = p_property_id;
@@ -233,11 +233,11 @@ create or replace function public.partner_listing_stats(p_partner_id uuid)
 returns table (property_id uuid, code text, views int, favorites int, interested text, as_of timestamptz)
 language plpgsql stable security definer set search_path = '' as $$
 begin
-  if not public.is_partner_member(p_partner_id) then
+  if not app.is_partner_member(p_partner_id) then
     raise exception 'Bu iş ortağı adına işlem yetkiniz yok' using errcode = '42501';
   end if;
   return query
-    select p.id, p.code, coalesce(s.views, 0), coalesce(s.favorites, 0), public.bucket_interested(s.interested), s.as_of
+    select p.id, p.code, coalesce(s.views, 0), coalesce(s.favorites, 0), app.bucket_interested(s.interested), s.as_of
     from public.partner_property_links l
     join public.properties p on p.id = l.property_id
     left join private.listing_interest_snapshot s on s.property_id = p.id
@@ -248,16 +248,16 @@ create or replace function public.partner_get_private_details(p_property_id uuid
 language sql stable security definer set search_path = '' as $$
   select to_jsonb(d) - 'owner_notes'
   from private.property_private_details d
-  where d.property_id = p_property_id and public.partner_links_property(p_property_id)
+  where d.property_id = p_property_id and app.partner_links_property(p_property_id)
 $$;
 
 -- ---------------------------------------------------------------
 -- Yönetici fonksiyonları
 -- ---------------------------------------------------------------
 create or replace function private.require_admin(p_pii boolean default false) returns void
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql stable set search_path = '' as $$
 begin
-  if not public.is_platform_admin() then
+  if not app.is_platform_admin() then
     raise exception 'Yalnızca platform yöneticisi' using errcode = '42501';
   end if;
   if p_pii and not private.can_view_pii() then
@@ -408,7 +408,7 @@ create or replace function public.admin_set_match_setting(p_key text, p_value nu
 language plpgsql security definer set search_path = '' as $$
 begin
   perform private.require_admin();
-  if not public.is_superadmin() then raise exception 'Yalnızca süper yönetici' using errcode = '42501'; end if;
+  if not app.is_superadmin() then raise exception 'Yalnızca süper yönetici' using errcode = '42501'; end if;
   update private.match_settings set value = p_value where key = p_key;
   if not found then raise exception 'Ayar bulunamadı' using errcode = 'P0002'; end if;
   perform private.audit('match_setting', 'match_settings', p_key, jsonb_build_object('value', p_value));
@@ -419,7 +419,7 @@ language plpgsql security definer set search_path = '' as $$
 declare res jsonb;
 begin
   perform private.require_admin();
-  if not public.is_superadmin() then raise exception 'Yalnızca süper yönetici' using errcode = '42501'; end if;
+  if not app.is_superadmin() then raise exception 'Yalnızca süper yönetici' using errcode = '42501'; end if;
   select coalesce(jsonb_agg(to_jsonb(a) order by a.at desc), '[]'::jsonb) into res
   from (select * from private.audit_events order by at desc limit least(greatest(p_limit, 1), 1000)) a;
   return res;
@@ -437,7 +437,7 @@ create or replace function public.admin_erase_buyer(p_buyer_id uuid) returns voi
 language plpgsql security definer set search_path = '' as $$
 begin
   perform private.require_admin(true);
-  if not public.is_superadmin() then raise exception 'Yalnızca süper yönetici' using errcode = '42501'; end if;
+  if not app.is_superadmin() then raise exception 'Yalnızca süper yönetici' using errcode = '42501'; end if;
   update private.buyers
      set full_name = 'Silinmiş alıcı', phone = null, email = 'erased+' || id::text || '@invalid', nationality = null,
          user_id = null, marketing_opt_in = false, erased_at = now()
@@ -448,15 +448,35 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------
--- Yetkiler: her fonksiyon yalnızca hedef rolüne açılır
+-- Yetkiler: önce TÜM fonksiyonlardan çalıştırma yetkisi kaldırılır (PUBLIC dahil),
+-- sonra yalnızca docs/SECURITY_DEFINER.md'deki onaylı liste geri verilir.
 -- ---------------------------------------------------------------
 revoke execute on all functions in schema private from public, anon, authenticated;
+revoke execute on all functions in schema app from public, anon, authenticated;
+revoke execute on all functions in schema public from public, anon, authenticated;
+
+-- RLS politikalarının çağırdığı yardımcılar (app şeması Data API'de açık değildir)
+grant execute on function app.property_is_live(uuid) to anon, authenticated;
+grant execute on function app.slugify(text) to anon, authenticated;
+grant execute on function app.is_platform_admin() to authenticated;
+grant execute on function app.is_superadmin() to authenticated;
+grant execute on function app.my_partner_ids() to authenticated;
+grant execute on function app.is_partner_member(uuid) to authenticated;
+grant execute on function app.partner_role(uuid) to authenticated;
+grant execute on function app.partner_links_property(uuid) to authenticated;
+grant execute on function app.partner_can_edit_property(uuid) to authenticated;
+grant execute on function app.partner_links_development(uuid) to authenticated;
+grant execute on function app.bucket_interested(int) to authenticated;
+
+-- Ziyaretçi RPC'leri
+grant execute on function public.citizenship_collection() to anon, authenticated;
+grant execute on function public.match_weights() to anon, authenticated;
 
 revoke execute on function public.submit_buyer_request(jsonb) from public;
 revoke execute on function public.request_viewing(jsonb) from public;
 revoke execute on function public.record_listing_view(uuid, text) from public, anon, authenticated;
 revoke execute on function public.my_requests() from public, anon;
-revoke execute on function public.bucket_interested(int) from public;
+revoke execute on function app.bucket_interested(int) from public;
 revoke execute on function public.partner_create_property(uuid, jsonb) from public, anon;
 revoke execute on function public.partner_submit_property(uuid) from public, anon;
 revoke execute on function public.partner_listing_stats(uuid) from public, anon;
@@ -480,7 +500,7 @@ grant execute on function public.record_listing_view(uuid, text) to service_role
 grant execute on function private.refresh_interest_snapshot(timestamptz) to service_role;
 grant execute on function private.expire_authorizations() to service_role;
 grant execute on function public.my_requests() to authenticated;
-grant execute on function public.bucket_interested(int) to authenticated;
+grant execute on function app.bucket_interested(int) to authenticated;
 grant execute on function public.partner_create_property(uuid, jsonb) to authenticated;
 grant execute on function public.partner_submit_property(uuid) to authenticated;
 grant execute on function public.partner_listing_stats(uuid) to authenticated;

@@ -27,7 +27,7 @@ insert into private.match_settings (key, value, label) values
   ('min_score', 60, 'En düşük uyum yüzdesi');
 
 create or replace function private.setting(p_key text) returns numeric
-language sql stable security definer set search_path = '' as $$
+language sql stable set search_path = '' as $$
   select value from private.match_settings where key = p_key
 $$;
 
@@ -39,7 +39,7 @@ language sql stable security definer set search_path = '' as $$
   where c.status = 'preliminarily_eligible'
     and c.admin_approved
     and (c.expires_at is null or c.expires_at > now())
-    and public.property_is_live(c.property_id)
+    and app.property_is_live(c.property_id)
 $$;
 
 create or replace function private.fmt_tl(p bigint) returns text
@@ -49,7 +49,7 @@ $$;
 
 create or replace function private.score_pair(r private.buyer_requests, p public.properties)
 returns table (score int, kind text, reasons jsonb)
-language plpgsql stable security definer set search_path = '' as $$
+language plpgsql stable set search_path = '' as $$
 declare
   v_s numeric := 0;
   v_rs jsonb := '[]'::jsonb;
@@ -63,7 +63,7 @@ declare
   v_label text;
   v_similar boolean;
 begin
-  if not public.property_is_live(p.id) then return; end if;
+  if not app.property_is_live(p.id) then return; end if;
   if r.citizenship and p.id not in (select public.citizenship_collection()) then return; end if;
 
   -- Bölge
@@ -171,7 +171,7 @@ end $$;
 
 -- Bir talebin eşleşmelerini yeniden hesaplar
 create or replace function private.refresh_matches_for_request(p_request_id uuid) returns int
-language plpgsql security definer set search_path = '' as $$
+language plpgsql set search_path = '' as $$
 declare r private.buyer_requests; n int;
 begin
   select * into r from private.buyer_requests where id = p_request_id;
@@ -204,7 +204,7 @@ end $$;
 
 -- Bir mülk değişince açık taleplerle eşleşmesini yeniden hesaplar
 create or replace function private.refresh_matches_for_property(p_property_id uuid) returns void
-language plpgsql security definer set search_path = '' as $$
+language plpgsql set search_path = '' as $$
 declare r private.buyer_requests; p public.properties; m record;
 begin
   select * into p from public.properties where id = p_property_id;

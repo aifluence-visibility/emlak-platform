@@ -48,7 +48,7 @@ create table public.properties (
 );
 create index properties_status_idx on public.properties (status);
 create index properties_search_idx on public.properties (district, neighborhood, type, price);
-create trigger properties_touch before update on public.properties for each row execute function public.touch_updated_at();
+create trigger properties_touch before update on public.properties for each row execute function app.touch_updated_at();
 
 -- Kesin konum ve hassas bilgiler: yalnızca yönetici (RPC) ve ilanı giren partner (RPC) okur
 create table private.property_private_details (
@@ -106,7 +106,7 @@ create table public.partner_property_links (
 );
 create index ppl_property_idx on public.partner_property_links (property_id);
 create index ppl_partner_idx on public.partner_property_links (partner_id);
-create trigger ppl_touch before update on public.partner_property_links for each row execute function public.touch_updated_at();
+create trigger ppl_touch before update on public.partner_property_links for each row execute function app.touch_updated_at();
 
 -- Yetki/belge kontrolleri. Kanıt dosyası 'partner-documents' bucket'ında; burada yalnızca yolu ve sonucu tutulur.
 create table public.property_authorization_checks (
@@ -180,7 +180,7 @@ create table public.developments (
   created_at        timestamptz not null default now(),
   updated_at        timestamptz not null default now()
 );
-create trigger developments_touch before update on public.developments for each row execute function public.touch_updated_at();
+create trigger developments_touch before update on public.developments for each row execute function app.touch_updated_at();
 
 alter table public.properties
   add constraint properties_development_fk foreign key (development_id) references public.developments(id) on delete set null;
@@ -230,10 +230,10 @@ create table public.citizenship_reviews (
   note           text,
   updated_at     timestamptz not null default now()
 );
-create trigger citizenship_touch before update on public.citizenship_reviews for each row execute function public.touch_updated_at();
+create trigger citizenship_touch before update on public.citizenship_reviews for each row execute function app.touch_updated_at();
 
 -- Sahip kararı: onay yalnızca "ön uygun" durumda ve kontrol listesinin TAMAMI işaretliyse verilebilir.
-create or replace function public.guard_citizenship_review() returns trigger
+create or replace function app.guard_citizenship_review() returns trigger
 language plpgsql set search_path = '' as $$
 begin
   if new.admin_approved then
@@ -250,7 +250,7 @@ begin
   return new;
 end $$;
 create trigger citizenship_guard before insert or update on public.citizenship_reviews
-  for each row execute function public.guard_citizenship_review();
+  for each row execute function app.guard_citizenship_review();
 
 -- Partner gösterim müsaitliği (randevu/alıcı bilgisi içermez)
 create table public.partner_availability (
@@ -268,7 +268,7 @@ create table public.partner_availability (
 -- ---------------------------------------------------------------
 
 -- Mülk "canlı" mı: yayında + en az bir aktif, süresi geçmemiş, aktif partnerli bağlantı (brief §8)
-create or replace function public.property_is_live(p_property_id uuid) returns boolean
+create or replace function app.property_is_live(p_property_id uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select exists (
     select 1
@@ -284,32 +284,32 @@ language sql stable security definer set search_path = '' as $$
 $$;
 
 -- Çağıranın partneri bu mülke bağlı mı (durumdan bağımsız)
-create or replace function public.partner_links_property(p_property_id uuid) returns boolean
+create or replace function app.partner_links_property(p_property_id uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select exists (
     select 1 from public.partner_property_links l
-    where l.property_id = p_property_id and l.partner_id in (select public.my_partner_ids())
+    where l.property_id = p_property_id and l.partner_id in (select app.my_partner_ids())
   )
 $$;
 
 -- Partner kanonik kaydı doğrudan düzenleyebilir mi:
 -- yalnızca mülkün TEK bağlantısı kendisininse ve ilan henüz incelemeye gönderilmemişse.
 -- (Çoklu partnerli mülkte bir partnerin değişikliği diğerini etkilemesin.)
-create or replace function public.partner_can_edit_property(p_property_id uuid) returns boolean
+create or replace function app.partner_can_edit_property(p_property_id uuid) returns boolean
 language sql stable security definer set search_path = '' as $$
   select exists (
     select 1 from public.properties p
     where p.id = p_property_id and p.status in ('draft', 'pending_partner_documents')
   )
   and (select count(*) from public.partner_property_links l where l.property_id = p_property_id) = 1
-  and public.partner_links_property(p_property_id)
+  and app.partner_links_property(p_property_id)
 $$;
 
 -- Yönetici olmayan doğrudan yazmalarda korunan alanlar (RPC'ler security definer ile çalışır, bu kontrole takılmaz)
-create or replace function public.guard_property_write() returns trigger
+create or replace function app.guard_property_write() returns trigger
 language plpgsql set search_path = '' as $$
 begin
-  if current_user in ('authenticated', 'anon') and not public.is_platform_admin() then
+  if current_user in ('authenticated', 'anon') and not app.is_platform_admin() then
     if tg_op = 'INSERT' then
       raise exception 'Mülk yalnızca partner_create_property() ile oluşturulabilir';
     end if;
@@ -322,13 +322,13 @@ begin
   return new;
 end $$;
 create trigger properties_guard before insert or update on public.properties
-  for each row execute function public.guard_property_write();
+  for each row execute function app.guard_property_write();
 
 -- Partner kendi bağlantısında yalnızca iç referans ve fiyatını değiştirebilir; yetki/EİDS durumu platformundur
-create or replace function public.guard_link_write() returns trigger
+create or replace function app.guard_link_write() returns trigger
 language plpgsql set search_path = '' as $$
 begin
-  if current_user in ('authenticated', 'anon') and not public.is_platform_admin() then
+  if current_user in ('authenticated', 'anon') and not app.is_platform_admin() then
     if tg_op = 'INSERT' then
       raise exception 'Bağlantı yalnızca platform tarafından oluşturulabilir';
     end if;
@@ -341,13 +341,13 @@ begin
   return new;
 end $$;
 create trigger ppl_guard before insert or update on public.partner_property_links
-  for each row execute function public.guard_link_write();
+  for each row execute function app.guard_link_write();
 
 -- Partner belge gönderebilir ama doğrulayamaz
-create or replace function public.guard_auth_check_write() returns trigger
+create or replace function app.guard_auth_check_write() returns trigger
 language plpgsql set search_path = '' as $$
 begin
-  if current_user in ('authenticated', 'anon') and not public.is_platform_admin() then
+  if current_user in ('authenticated', 'anon') and not app.is_platform_admin() then
     if new.status <> 'submitted' or new.verified_by is not null or new.verified_at is not null then
       raise exception 'Belge doğrulaması yalnızca platform tarafından yapılır';
     end if;
@@ -358,10 +358,10 @@ begin
   return new;
 end $$;
 create trigger pac_guard before insert or update on public.property_authorization_checks
-  for each row execute function public.guard_auth_check_write();
+  for each row execute function app.guard_auth_check_write();
 
 -- Fiyat geçmişi
-create or replace function public.log_price_change() returns trigger
+create or replace function private.log_price_change() returns trigger
 language plpgsql security definer set search_path = '' as $$
 begin
   if tg_op = 'INSERT' or new.price is distinct from old.price then
@@ -371,7 +371,7 @@ begin
   return new;
 end $$;
 create trigger properties_price_log after insert or update of price on public.properties
-  for each row execute function public.log_price_change();
+  for each row execute function private.log_price_change();
 
 -- Yetkisi biten bağlantılar ve canlı bağlantısı kalmayan ilanlar (günlük iş; bkz. 006)
 create or replace function private.expire_authorizations() returns int
@@ -382,16 +382,16 @@ begin
   where authorization_status = 'active' and authorized_until < current_date;
   get diagnostics n = row_count;
   update public.properties p set status = 'expired'
-  where p.status = 'published' and not public.property_is_live(p.id);
+  where p.status = 'published' and not app.property_is_live(p.id);
   return n;
 end $$;
 
-revoke execute on function public.guard_citizenship_review() from public, anon, authenticated;
-revoke execute on function public.guard_property_write() from public, anon, authenticated;
-revoke execute on function public.guard_link_write() from public, anon, authenticated;
-revoke execute on function public.guard_auth_check_write() from public, anon, authenticated;
-revoke execute on function public.log_price_change() from public, anon, authenticated;
+revoke execute on function app.guard_citizenship_review() from public, anon, authenticated;
+revoke execute on function app.guard_property_write() from public, anon, authenticated;
+revoke execute on function app.guard_link_write() from public, anon, authenticated;
+revoke execute on function app.guard_auth_check_write() from public, anon, authenticated;
+revoke execute on function private.log_price_change() from public, anon, authenticated;
 revoke execute on function private.expire_authorizations() from public, anon, authenticated;
-grant execute on function public.property_is_live(uuid) to anon, authenticated;
-grant execute on function public.partner_links_property(uuid) to authenticated;
-grant execute on function public.partner_can_edit_property(uuid) to authenticated;
+grant execute on function app.property_is_live(uuid) to anon, authenticated;
+grant execute on function app.partner_links_property(uuid) to authenticated;
+grant execute on function app.partner_can_edit_property(uuid) to authenticated;

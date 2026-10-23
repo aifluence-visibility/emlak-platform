@@ -36,6 +36,7 @@ Ortam değişkeni gerekmez (bkz. `.env.example`).
 - [Uygulama planı](docs/IMPLEMENTATION_PLAN.md)
 - [Vercel önizleme kurulumu](docs/VERCEL_KURULUM.md)
 - [Supabase kurulum yol haritası](docs/SUPABASE_KURULUM.md)
+- [Security definer fonksiyonları ve gerekçeleri](docs/SECURITY_DEFINER.md)
 
 ## Veritabanı (`supabase/`)
 
