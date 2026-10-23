@@ -37,3 +37,43 @@ export const DEV_STATUS: Record<string, string> = {
   under_construction: "İnşaat sürüyor",
   completed: "Teslim edildi",
 };
+
+export const STATUS: Record<string, string> = {
+  draft: "Taslak",
+  pending_partner_documents: "Belge bekleniyor",
+  pending_eids_verification: "EİDS doğrulaması bekleniyor",
+  pending_admin_review: "Yönetici incelemesinde",
+  published: "Yayında",
+  paused: "Durduruldu",
+  expired: "Süresi doldu",
+  sold: "Satıldı",
+  archived: "Arşivde",
+};
+
+/** Yaşam döngüsü adımları (brief §7) */
+export const LIFECYCLE = [
+  "draft",
+  "pending_partner_documents",
+  "pending_eids_verification",
+  "pending_admin_review",
+  "published",
+] as const;
+
+export const AUTH_STATUS: Record<string, string> = {
+  pending: "Yetki bekleniyor",
+  active: "Yetki aktif",
+  expired: "Yetki süresi doldu",
+  revoked: "Yetki geri alındı",
+};
+
+export const EIDS_STATUS: Record<string, string> = {
+  not_started: "Başlamadı",
+  pending: "Bekliyor",
+  simulated_verified: "Doğrulandı (simülasyon)",
+};
+
+/** Başlangıç bölgeleri (sahip: Bodrum, Mumcular, Milas; yenileri eklenecek) */
+export const NEIGHBORHOODS: Record<"bodrum" | "milas", string[]> = {
+  bodrum: ["Akyarlar", "Bitez", "Göltürkbükü", "Gümüşlük", "Gündoğan", "Gürece", "Konacık", "Kumbahçe", "Mumcular", "Ortakent", "Torba", "Turgutreis", "Yalıkavak"],
+  milas: ["Boğaziçi", "Güllük", "Kıyıkışlacık", "Milas Merkez", "Ören"],
+};

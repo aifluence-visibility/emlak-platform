@@ -32,14 +32,22 @@ Rol bilgisi **kullanıcının düzenleyebildiği metadata'dan okunmaz**. `platfo
 4. Public API, URL, JSON-LD, görsel metadata ve hata mesajlarında partner kimliği bulunmaz.
 5. Yayında olmayan (taslak, inceleme bekleyen, süresi dolmuş) ilan hiçbir alıcı akışında görünmez.
 
-### Sahip kararı: partnerin göreceği "uygun talep sayısı" (brief §9'dan bilinçli sapma)
+### Sahip kararı: partner ilan istatistikleri (2026-10-23, önceki "uygun talep sayısı" kararının yerine)
 
-Brief V1'de partnerin alıcı talebini **anonim olarak bile** sorgulayamamasını öneriyordu. Platform sahibi (2026-10-23) şu kararı verdi: **partner, kendi ilanlarının her birine kaç uygun talep olduğunu sayı olarak görebilir.** Uygulama sınırları:
+Partner, **yalnızca kendi portföyündeki** her ilan için şu üç sayıyı görür:
 
-- Yalnızca **toplam sayı** gösterilir (ör. "4 uygun talep"). Talep içeriği, kriterler, bütçe, tarih veya alıcı kimliği gösterilmez.
-- Sayı, yöneticinin eşleştirme motorunun ürettiği `property_matches` tablosundan, **security definer bir RPC** ile hesaplanır: `partner_listing_demand_counts()`. Partner `property_matches` veya `buyer_requests` tablosunu doğrudan okuyamaz.
-- RPC yalnızca çağıranın aktif partner bağlantısı olan mülkleri döndürür.
-- **Küçük sayılarda tahmin riski:** 1–2 gibi değerler tek bir alıcıyı ima edebilir. Öneri: 3'ün altını "1–2" olarak göstermek. Sahip onayı bekleniyor.
+| Gösterge | Tanım | Tekilleştirme |
+|---|---|---|
+| Görüntülenme | İlan detay sayfası görüntülemesi | Aynı kişinin aynı gündeki tekrarları 1 sayılır (kişi-gün) |
+| Favoriye eklenme | Şu an favorisinde tutan kişi sayısı | Ekle-çıkar-ekle döngüsü sayıyı artırmaz; kişinin son durumu esas alınır |
+| İlgilenen alıcı | Bilgi veya randevu talebi gönderen kişi | Aynı kişinin birden çok talebi 1 sayılır; **1–2 ise "1–2"** gösterilir |
+
+- **Gecikmeli:** yalnızca önceki gün sonuna kadarki olaylar sayılır; anlık hareket partnere yansımaz.
+- **Anonim ve toplulaştırılmış:** partner ham olayları, alıcı adını, telefonunu, e-postasını, arama kriterlerini, taleplerini, eşleşme ayrıntılarını ve randevu bilgilerini **görmez**.
+- **İzolasyon:** başka partnerin ilanı veya istatistiği hiçbir yanıtta yer almaz. Partnerin bağlantısı olmayan bir mülk "bulunamadı" (404) döner; varlığı bile sızmaz.
+- **Uygulama (önizleme):** `src/lib/stats.ts` (`aggregate`, `bucketInterested`) ve `src/lib/data/partner.ts`. Ham ilgilenen sayısı partner katmanına hiç çıkmaz; yalnızca kova değeri çıkar.
+- **Uygulama (canlı):** ham olaylar `private.interest_events` tablosunda (saklama süreli; anonim ziyaretçi anahtarı dönen ve tuzlu hash). Gece çalışan bir iş `listing_interest_daily` tablosunu doldurur. Partner yalnızca `partner_listing_stats()` RPC'sini çağırabilir (security definer, `auth.uid()` → partner üyeliği → yalnızca aktif bağlantılı mülkler; kova uygulanmış değer).
+- **Randevular:** sahip kararıyla partner panelinde randevu bilgisi **gösterilmez**. Partner yalnızca genel **gösterim müsaitliğini** bildirir; görüntüleme gerektiğinde platform ekibi partnerle doğrudan iletişime geçer.
 
 ### Sahip kararı: vatandaşlık koleksiyonu
 
@@ -67,7 +75,7 @@ Ayrıntılı tipler: `src/lib/types.ts`. Tablo adları brief §10 ile birebir ay
 
 **Alıcı (private şema):** `private.buyers`, `private.buyer_contacts`, `buyer_requests`, `buyer_request_preferences`, `buyer_favorites`, `saved_searches`, `notification_preferences`
 
-**Eşleştirme ve randevu:** `property_matches`, `viewing_requests`, `viewing_request_items`, `appointments`, `appointment_partner_assignments` (partnere giden **anonim** görünüm: mülk, tarih ve saat; alıcı yok), `appointment_status_history`
+**Eşleştirme ve randevu:** `property_matches`, `viewing_requests`, `viewing_request_items`, `appointments`, `appointment_partner_assignments` (yalnızca yönetici; partner randevu görmez), `partner_availability`, `appointment_status_history`
 
 **Ticari (yalnızca yönetici):** `partner_agreements`, `referral_attributions`, `deal_progress`, `admin_tasks`, `audit_events`
 
@@ -76,8 +84,8 @@ Ayrıntılı tipler: `src/lib/types.ts`. Tablo adları brief §10 ile birebir ay
 ## 5. Veri akışları
 
 1. **İlan yayını:** Partner taslak oluşturur → belge yükler (private bucket) → EİDS doğrulaması (yöntem henüz doğrulanmadı) → yönetici incelemesi → `published`. Yetkinin süresi dolarsa ilan otomatik olarak `expired` olur ve eşleştirmeden çıkar.
-2. **Alıcı talebi:** Form → server action (rate limit, rıza kaydı) → `private.buyers` + `buyer_requests` → eşleştirme motoru → `property_matches` (yalnızca yönetici okur) → partner yalnızca sayıyı görür.
-3. **Randevu:** Alıcı bir veya birden çok ilan seçer → `viewing_requests` + `viewing_request_items` → yönetici partnerle iletişime geçer → `appointments` + `appointment_partner_assignments` (partner kendi mülkü için yalnızca saati görür) → durum geçmişi tutulur.
+2. **Alıcı talebi:** Form → server action (rate limit, rıza kaydı) → `private.buyers` + `buyer_requests` → eşleştirme motoru → `property_matches` (yalnızca yönetici okur). Partner bu akıştan hiçbir şey görmez; yalnızca gecikmeli ilgi istatistikleri.
+3. **Randevu:** Alıcı bir veya birden çok ilan seçer → `viewing_requests` + `viewing_request_items` → yönetici partnerle iletişime geçer → `appointments` + `appointment_partner_assignments` → durum geçmişi tutulur. Partner randevu kaydını görmez.
 
 ## 6. Kod yapısı
 
@@ -117,8 +125,8 @@ Kimlikler: `admin`, `partner_a`, `partner_b`, `buyer_a`, `buyer_b`, `anon`.
 | 6 | `private.buyers` / `buyer_contacts` | ✅ | ❌ (şema erişimi yok) | ❌ | yalnızca kendisi | ❌ |
 | 7 | `buyer_requests` | ✅ | ❌ | ❌ | yalnızca kendisi | ❌ |
 | 8 | `property_matches` doğrudan okuma | ✅ | ❌ | ❌ | ❌ | ❌ |
-| 9 | `partner_listing_demand_counts()` RPC | — | yalnızca A'nın ilanları, yalnızca sayı | yalnızca B'ninkiler | ❌ | ❌ |
-| 10 | `appointments` | ✅ | kendi mülkleri, alıcı alanları yok | kendi mülkleri | kendi randevuları | ❌ |
+| 9 | `partner_listing_stats()` RPC | — | yalnızca A'nın ilanları; görüntülenme, favori, ilgilenen (1–2 kovası) | yalnızca B'ninkiler | ❌ | ❌ |
+| 10 | `appointments` | ✅ | ❌ (sahip kararı) | ❌ | kendi randevuları | ❌ |
 | 11 | `buyer_favorites` | ✅ | ❌ | ❌ | yalnızca kendisi | ❌ |
 | 12 | Private bucket (tapu, yetki belgesi) | ✅ | yalnızca kendi klasörü | yalnızca kendi klasörü | ❌ | ❌ |
 | 13 | `partner_agreements`, komisyon | ✅ | ❌ | ❌ | ❌ | ❌ |

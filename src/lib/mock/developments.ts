@@ -70,3 +70,10 @@ export const developmentUnits: DevelopmentUnit[] = [
   { id: "u-gk-a", developmentId: "dev-gulluk-bay", label: "A Blok · 2+1", rooms: "2+1", netSqm: 86, grossSqm: 104, price: 5_600_000, availability: "available", propertyId: null },
   { id: "u-gk-b", developmentId: "dev-gulluk-bay", label: "B Blok · 3+1", rooms: "3+1", netSqm: 120, grossSqm: 142, price: 7_350_000, availability: "available", propertyId: null },
 ];
+
+/** Hangi partner hangi projeyi temsil ediyor (brief §5: development_partner_links) */
+export const developmentPartnerLinks: { developmentId: string; partnerId: string }[] = [
+  { developmentId: "dev-ege-teras", partnerId: "partner-d" },
+  { developmentId: "dev-yali-koru", partnerId: "partner-d" },
+  { developmentId: "dev-gulluk-bay", partnerId: "partner-d" },
+];

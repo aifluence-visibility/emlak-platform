@@ -37,3 +37,28 @@ export const partnerPropertyLinks: PartnerPropertyLink[] = Object.entries(assign
     } satisfies PartnerPropertyLink;
   }),
 );
+
+/** ÖRNEK: partnerlerin gösterim müsaitliği (alıcı/randevu bilgisi içermez) */
+export const partnerAvailability: Record<string, { day: string; from: string; to: string }[]> = {
+  "partner-a": [
+    { day: "Pazartesi–Cuma", from: "10:00", to: "18:00" },
+    { day: "Cumartesi", from: "11:00", to: "15:00" },
+  ],
+  "partner-b": [{ day: "Salı–Cumartesi", from: "09:30", to: "17:30" }],
+  "partner-c": [{ day: "Pazartesi–Cumartesi", from: "10:00", to: "17:00" }],
+  "partner-d": [{ day: "Her gün", from: "10:00", to: "19:00" }],
+};
+
+/** ÖRNEK: kurgusal ofis çalışanları */
+export const partnerStaff: Record<string, { name: string; role: "owner" | "manager" | "staff" }[]> = {
+  "partner-a": [
+    { name: "Örnek Yönetici A", role: "owner" },
+    { name: "Örnek Danışman A1", role: "staff" },
+  ],
+  "partner-b": [{ name: "Örnek Yönetici B", role: "owner" }],
+  "partner-c": [
+    { name: "Örnek Yönetici C", role: "owner" },
+    { name: "Örnek Danışman C1", role: "staff" },
+  ],
+  "partner-d": [{ name: "Örnek Proje Sorumlusu D", role: "manager" }],
+};
