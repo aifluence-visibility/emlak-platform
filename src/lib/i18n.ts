@@ -1,0 +1,227 @@
+import type { PropertyType } from "./types";
+import type { FeatureKey } from "./matching";
+
+/**
+ * Vatandaşlık bölümü TR / EN / RU. Diğer sayfalar şimdilik Türkçe; yapı tüm siteye genişletilebilir.
+ * İlan başlık ve açıklamalarının çevirisi Supabase aşamasında `property_translations` tablosundan gelecek.
+ */
+export type Lang = "tr" | "en" | "ru";
+export const LANGS: { key: Lang; label: string }[] = [
+  { key: "tr", label: "TR" },
+  { key: "en", label: "EN" },
+  { key: "ru", label: "RU" },
+];
+export const asLang = (v: unknown): Lang => (v === "en" || v === "ru" ? v : "tr");
+
+export const TYPES: Record<Lang, Record<PropertyType, string>> = {
+  tr: { villa: "Villa", apartment: "Daire", detached: "Müstakil ev", residence: "Rezidans", land: "Arsa" },
+  en: { villa: "Villa", apartment: "Apartment", detached: "Detached house", residence: "Residence", land: "Land" },
+  ru: { villa: "Вилла", apartment: "Квартира", detached: "Частный дом", residence: "Резиденция", land: "Участок" },
+};
+
+export const FEATURES: Record<Lang, Record<FeatureKey, string>> = {
+  tr: { pool: "Havuz", garden: "Bahçe", seaView: "Deniz manzarası", parking: "Otopark", furnished: "Eşyalı", inSite: "Site içinde", creditEligible: "Krediye uygun" },
+  en: { pool: "Pool", garden: "Garden", seaView: "Sea view", parking: "Parking", furnished: "Furnished", inSite: "Gated community", creditEligible: "Mortgage eligible" },
+  ru: { pool: "Бассейн", garden: "Сад", seaView: "Вид на море", parking: "Парковка", furnished: "С мебелью", inSite: "Закрытый комплекс", creditEligible: "Ипотека возможна" },
+};
+
+const nf = (lang: Lang) => new Intl.NumberFormat(lang === "tr" ? "tr-TR" : lang === "ru" ? "ru-RU" : "en-US");
+export const money = (lang: Lang, n: number) => `${nf(lang).format(n)} TL`;
+export function moneyShort(lang: Lang, n: number) {
+  if (n < 1_000_000) return money(lang, n);
+  const m = new Intl.NumberFormat(lang === "tr" ? "tr-TR" : lang === "ru" ? "ru-RU" : "en-US", { maximumFractionDigits: n >= 100_000_000 ? 0 : 1 }).format(n / 1_000_000);
+  return lang === "tr" ? `${m} Milyon TL` : lang === "ru" ? `${m} млн TL` : `${m}M TL`;
+}
+
+/** Eşleştirme gerekçe şablonları */
+export const REASONS: Record<Lang, Record<string, (a: Record<string, string | number>) => string>> = {
+  tr: {
+    region_ok: (a) => `İstenen bölgede: ${a.place}`,
+    region_alt: (a) => `Aynı ilçede yakın alternatif: ${a.place}`,
+    region_warn: (a) => `Farklı bölge: ${a.place}`,
+    budget_ok: (a) => `Bütçe içinde: ${a.price}`,
+    budget_warn: (a) => `Bütçeyi ${a.over} aşıyor`,
+    type_ok: (a) => `Aranan tür: ${a.type}`,
+    type_alt: (a) => `Benzer tür: ${a.type}`,
+    type_warn: (a) => `Farklı tür: ${a.type}`,
+    rooms_ok: (a) => `${a.rooms} — en az ${a.min} oda isteğini karşılıyor`,
+    rooms_none: () => "Oda bilgisi yok (arsa)",
+    rooms_warn: (a) => `${a.rooms} — istenenden ${a.diff} oda az`,
+    sqm_ok: (a) => `Net ${a.sqm} m² (en az ${a.min} m²)`,
+    sqm_none: () => "Net alan belirtilmemiş",
+    sqm_warn: (a) => `Net ${a.sqm} m² (istenen ${a.min} m²)`,
+    feat_ok: (a) => `${a.f}`,
+    feat_warn: (a) => `${a.f} yok`,
+  },
+  en: {
+    region_ok: (a) => `In your chosen area: ${a.place}`,
+    region_alt: (a) => `Nearby alternative in the same district: ${a.place}`,
+    region_warn: (a) => `Different area: ${a.place}`,
+    budget_ok: (a) => `Within budget: ${a.price}`,
+    budget_warn: (a) => `Exceeds budget by ${a.over}`,
+    type_ok: (a) => `Requested type: ${a.type}`,
+    type_alt: (a) => `Similar type: ${a.type}`,
+    type_warn: (a) => `Different type: ${a.type}`,
+    rooms_ok: (a) => `${a.rooms} — meets your minimum of ${a.min} bedrooms`,
+    rooms_none: () => "No room data (land)",
+    rooms_warn: (a) => `${a.rooms} — ${a.diff} bedroom(s) fewer than requested`,
+    sqm_ok: (a) => `${a.sqm} m² net (min. ${a.min} m²)`,
+    sqm_none: () => "Net area not specified",
+    sqm_warn: (a) => `${a.sqm} m² net (requested ${a.min} m²)`,
+    feat_ok: (a) => `${a.f}`,
+    feat_warn: (a) => `No ${String(a.f).toLowerCase()}`,
+  },
+  ru: {
+    region_ok: (a) => `В выбранном районе: ${a.place}`,
+    region_alt: (a) => `Альтернатива рядом, тот же район: ${a.place}`,
+    region_warn: (a) => `Другой район: ${a.place}`,
+    budget_ok: (a) => `В пределах бюджета: ${a.price}`,
+    budget_warn: (a) => `Превышает бюджет на ${a.over}`,
+    type_ok: (a) => `Нужный тип: ${a.type}`,
+    type_alt: (a) => `Похожий тип: ${a.type}`,
+    type_warn: (a) => `Другой тип: ${a.type}`,
+    rooms_ok: (a) => `${a.rooms} — не меньше ${a.min} спален`,
+    rooms_none: () => "Нет данных о комнатах (участок)",
+    rooms_warn: (a) => `${a.rooms} — на ${a.diff} спальн. меньше`,
+    sqm_ok: (a) => `${a.sqm} м² полезной площади (мин. ${a.min} м²)`,
+    sqm_none: () => "Полезная площадь не указана",
+    sqm_warn: (a) => `${a.sqm} м² (нужно ${a.min} м²)`,
+    feat_ok: (a) => `${a.f}`,
+    feat_warn: (a) => `Нет: ${a.f}`,
+  },
+};
+
+/** Arayüz metinleri (eşleştirme sihirbazı + vatandaşlık sayfaları) */
+export const UI = {
+  tr: {
+    wizardTitle: "Bana Uygun Evi Bul",
+    wizardLead: "Birkaç soruya yanıt verin. Uyan her ilanı, neden uyduğu ve hangi kriterlerde farklı olduğuyla birlikte gösterelim.",
+    citWizardTitle: "Vatandaşlık için size uygun mülkü bulalım",
+    citWizardLead: "Yalnızca yönetici ön incelemesinden geçmiş koleksiyon içinde arar. Sonuçlar resmî uygunluk kararı değildir.",
+    region: "Hangi bölgeler?",
+    anyRegion: "Fark etmez",
+    budget: "En yüksek bütçe (TL)",
+    budgetPh: "Örn. 25.000.000",
+    type: "Ne tür bir ev?",
+    rooms: "En az kaç yatak odası?",
+    any: "Fark etmez",
+    sqm: "En az net alan (m²)",
+    features: "Olmazsa olmazlar",
+    strict: "Kesin kriter",
+    strictHint: "“Kesin” işaretlediğiniz kriterlere uymayan ilanlar hiç gösterilmez.",
+    search: "Uygun evleri göster",
+    reset: "Sıfırla",
+    results: (n: number) => `${n} uygun ilan`,
+    resultsHint: "Uyan tüm ilanlar puana göre sıralı. Yüzde, iç uyum puanıdır; satın alma olasılığı değildir.",
+    exact: "Tam uyum",
+    near: "Yakın uyum",
+    noResults: "Bu kriterlerle uyan ilan bulunamadı.",
+    noResultsHint: "Bir kriterin “kesin” işaretini kaldırmayı deneyin ya da talebinizi bırakın; uygun ilan geldiğinde size ulaşalım.",
+    startHint: "Soldaki kriterleri seçip “Uygun evleri göster”e basın.",
+    leaveRequest: "Bu kriterlerle talebimi bırak",
+    leaveRequestHint: "Talebiniz yalnızca platform yöneticisine iletilir. İş ortakları adınızı ve iletişim bilgilerinizi görmez.",
+    view: "İncele",
+    nationality: "Uyruğunuz (edinim kısıtları uyruğa göre değişebilir)",
+    nationalityPh: "Örn. Alman",
+  },
+  en: {
+    wizardTitle: "Find My Home",
+    wizardLead: "Answer a few questions. We show every matching listing with why it fits and where it differs.",
+    citWizardTitle: "Let us find a property that suits your citizenship plans",
+    citWizardLead: "Searches only within the collection pre-screened by our team. Results are not an official eligibility decision.",
+    region: "Which areas?",
+    anyRegion: "Any",
+    budget: "Maximum budget (TL)",
+    budgetPh: "e.g. 25,000,000",
+    type: "Property type",
+    rooms: "Minimum bedrooms",
+    any: "Any",
+    sqm: "Minimum net area (m²)",
+    features: "Must-haves",
+    strict: "Strict",
+    strictHint: "Listings that do not meet criteria marked “strict” are never shown.",
+    search: "Show matching homes",
+    reset: "Reset",
+    results: (n: number) => `${n} matching listing${n === 1 ? "" : "s"}`,
+    resultsHint: "All matches, sorted by score. The percentage is an internal fit score, not a probability of purchase.",
+    exact: "Exact match",
+    near: "Close match",
+    noResults: "No listings match these criteria.",
+    noResultsHint: "Try removing a “strict” mark, or leave your request and we will contact you when a suitable property arrives.",
+    startHint: "Choose your criteria and press “Show matching homes”.",
+    leaveRequest: "Leave my request with these criteria",
+    leaveRequestHint: "Your request goes only to the platform administrator. Partner agencies never see your name or contact details.",
+    view: "View",
+    nationality: "Your nationality (acquisition rules may vary by nationality)",
+    nationalityPh: "e.g. German",
+  },
+  ru: {
+    wizardTitle: "Подобрать недвижимость",
+    wizardLead: "Ответьте на несколько вопросов — покажем все подходящие объекты с объяснением соответствия и отличий.",
+    citWizardTitle: "Подберём объект для программы гражданства",
+    citWizardLead: "Поиск только в подборке, прошедшей предварительную проверку нашей команды. Результат не является официальным решением.",
+    region: "Какие районы?",
+    anyRegion: "Любой",
+    budget: "Максимальный бюджет (TL)",
+    budgetPh: "напр. 25 000 000",
+    type: "Тип недвижимости",
+    rooms: "Минимум спален",
+    any: "Не важно",
+    sqm: "Минимальная полезная площадь (м²)",
+    features: "Обязательно",
+    strict: "Строго",
+    strictHint: "Объекты, не отвечающие «строгим» критериям, не показываются.",
+    search: "Показать подходящие",
+    reset: "Сбросить",
+    results: (n: number) => `Подходящих объектов: ${n}`,
+    resultsHint: "Все совпадения по убыванию баллов. Процент — внутренняя оценка соответствия, а не вероятность покупки.",
+    exact: "Полное совпадение",
+    near: "Близкое совпадение",
+    noResults: "По этим критериям объектов нет.",
+    noResultsHint: "Снимите отметку «строго» или оставьте заявку — мы свяжемся, когда появится подходящий объект.",
+    startHint: "Выберите критерии и нажмите «Показать подходящие».",
+    leaveRequest: "Оставить заявку с этими критериями",
+    leaveRequestHint: "Заявка передаётся только администратору платформы. Партнёры не видят ваше имя и контакты.",
+    view: "Смотреть",
+    nationality: "Ваше гражданство (ограничения на покупку зависят от него)",
+    nationalityPh: "напр. Германия",
+  },
+};
+
+export const FORM: Record<Lang, Record<string, string>> = {
+  tr: {},
+  en: {
+    info: "Request information",
+    viewing: "Request a viewing",
+    name: "Your name",
+    contact: "Phone or email",
+    nationality: "Nationality",
+    dates: "Days / times that suit you",
+    datesPh: "e.g. 12–14 November, afternoons",
+    message: "Message (optional)",
+    consent: "I have read the privacy notice and agree that my details are processed by the platform administrator for this request only.",
+    privacyLink: "Privacy notice",
+    privacyNote: "Your details are never shared with partner agencies. Viewings are arranged by our team.",
+    submit: "Send",
+    done: "Preview mode: your request was not saved.",
+    doneDetail: "In the live version this form goes only to the platform administrator; partners will not see your contact details.",
+    again: "New request",
+  },
+  ru: {
+    info: "Запросить информацию",
+    viewing: "Записаться на просмотр",
+    name: "Ваше имя",
+    contact: "Телефон или e-mail",
+    nationality: "Гражданство",
+    dates: "Удобные дни / время",
+    datesPh: "напр. 12–14 ноября, после обеда",
+    message: "Сообщение (необязательно)",
+    consent: "Я ознакомился с уведомлением о конфиденциальности и согласен на обработку данных администратором платформы только для этой заявки.",
+    privacyLink: "Уведомление о конфиденциальности",
+    privacyNote: "Ваши данные не передаются партнёрам. Просмотры организует наша команда.",
+    submit: "Отправить",
+    done: "Режим предпросмотра: заявка не сохранена.",
+    doneDetail: "В рабочей версии форма будет доступна только администратору; партнёры не увидят ваши контакты.",
+    again: "Новая заявка",
+  },
+};
